@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
@@ -374,6 +375,19 @@ class Utils {
     return md5String;
   }
 
+  // 时间戳转日期字符串 (格式：yyyy-MM-dd HH:mm:ss)
+  static String formatTimestampToDate(int timestamp) {
+    DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+    String year = dateTime.year.toString();
+    String month = dateTime.month.toString().padLeft(2, '0');
+    String day = dateTime.day.toString().padLeft(2, '0');
+    String hour = dateTime.hour.toString().padLeft(2, '0');
+    String minute = dateTime.minute.toString().padLeft(2, '0');
+    String second = dateTime.second.toString().padLeft(2, '0');
+
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+
   static List<int> generateRandomBytes(int minLength, int maxLength) {
     return List<int>.generate(random.nextInt(maxLength - minLength + 1),
         (_) => random.nextInt(0x60) + 0x20);
@@ -389,5 +403,34 @@ class Utils {
     final Iterable<Match> matches = regExp.allMatches(str);
 
     return matches.map((Match match) => int.parse(match.group(0)!)).toList();
+  }
+
+  // 时间戳转日期字符串 (格式：yyyy-MM-dd HH:mm:ss)
+  static String formatTime2(dynamic timestamp) {
+    DateTime dateTime;
+    if (timestamp is DateTime) {
+      dateTime = timestamp;
+    } else if (timestamp is int) {
+      dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    } else {
+      return 'Invalid timestamp';
+    }
+
+    String year = dateTime.year.toString();
+    String month = dateTime.month.toString().padLeft(2, '0');
+    String day = dateTime.day.toString().padLeft(2, '0');
+    String hour = dateTime.hour.toString().padLeft(2, '0');
+    String minute = dateTime.minute.toString().padLeft(2, '0');
+    String second = dateTime.second.toString().padLeft(2, '0');
+
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+
+  // 格式化字节大小
+  static String formatBytes(int bytes, {int decimals = 2}) {
+    if (bytes <= 0) return '0 B';
+    const suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    var i = (log(bytes) / log(1024)).floor();
+    return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
   }
 }

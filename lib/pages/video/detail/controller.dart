@@ -179,9 +179,9 @@ class VideoDetailController extends GetxController
       watchLaterTitle.value = argMap['favTitle'];
       queryFavVideoList();
     }
-    tabCtr.addListener(() {
-      onTabChanged();
-    });
+    // 创建监听器函数并保存引用
+    tabChangedListener = onTabChanged;
+    tabCtr.addListener(tabChangedListener);
   }
 
   showReplyReplyPanel(oid, fRpid, firstFloor, currentReply, loadMore) {
@@ -668,16 +668,28 @@ class VideoDetailController extends GetxController
   }
 
   // 监听tabBarView切换
+  // 存储TabController监听器函数的引用
+  late VoidCallback tabChangedListener;
+
   void onTabChanged() {
     isWatchLaterVisible.value = tabCtr.index == 0;
+    
+    // 当切换到评论Tab时，刷新评论数据
+    if (tabCtr.index == 1) {
+      try {
+        // 尝试通过控制器刷新数据
+        final replyController = Get.find<VideoReplyController>(tag: heroTag);
+        replyController.queryReplyList(type: 'init');
+      } catch (e) {
+        // 如果找不到控制器，不做处理
+      }
+    }
   }
 
   @override
   void onClose() {
     super.onClose();
     plPlayerController.dispose();
-    tabCtr.removeListener(() {
-      onTabChanged();
-    });
+    tabCtr.removeListener(tabChangedListener);
   }
 }

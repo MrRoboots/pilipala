@@ -18,6 +18,7 @@ import 'package:pilipala/pages/video/detail/index.dart';
 import 'package:pilipala/router/app_pages.dart';
 import 'package:pilipala/pages/main/view.dart';
 import 'package:pilipala/services/service_locator.dart';
+import 'package:pilipala/services/download_service.dart';
 import 'package:pilipala/utils/app_scheme.dart';
 import 'package:pilipala/utils/data.dart';
 import 'package:pilipala/utils/global_data_cache.dart';
@@ -65,6 +66,9 @@ void main() async {
 
   PiliSchame.init();
   await GlobalDataCache().initialize();
+
+  // 初始化DownloadService
+  await Get.putAsync(() => DownloadService().init(), permanent: true);
 }
 
 class MyApp extends StatelessWidget {

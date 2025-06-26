@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../pages/dynamics/index.dart';
+import '../../pages/download/index.dart';
 import '../../pages/home/index.dart';
 import '../../pages/media/index.dart';
 import '../../pages/rank/index.dart';
@@ -61,5 +62,19 @@ List defaultNavigationBars = [
     'label': "媒体库",
     'count': 0,
     'page': const MediaPage(),
+  },
+  {
+    'id': 4,
+    'icon': const Icon(
+      Icons.download_outlined,
+      size: 20,
+    ),
+    'selectIcon': const Icon(
+      Icons.download,
+      size: 21,
+    ),
+    'label': "下载",
+    'count': 0,
+    'page': const DownloadPage(),
   }
 ];

@@ -36,6 +36,7 @@ class VideoReplyPanel extends StatefulWidget {
 
 class _VideoReplyPanelState extends State<VideoReplyPanel>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
+  // VideoReplyPanel的状态
   late VideoReplyController _videoReplyController;
   late AnimationController fabAnimationCtr;
   late ScrollController scrollController;
@@ -44,6 +45,13 @@ class _VideoReplyPanelState extends State<VideoReplyPanel>
   bool _isFabVisible = true;
   String replyLevel = '1';
   late String heroTag;
+
+  // 添加刷新方法
+  void refreshData() {
+    setState(() {
+      _futureBuilderFuture = _videoReplyController.queryReplyList(type: 'init');
+    });
+  }
 
   // 添加页面缓存
   @override
@@ -64,6 +72,8 @@ class _VideoReplyPanelState extends State<VideoReplyPanel>
           VideoReplyController(widget.oid, '', replyLevel),
           tag: heroTag);
     }
+
+    // 初始化完成
 
     fabAnimationCtr = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 300));
@@ -129,6 +139,7 @@ class _VideoReplyPanelState extends State<VideoReplyPanel>
     scrollController.removeListener(() {});
     fabAnimationCtr.dispose();
     scrollController.dispose();
+
     super.dispose();
   }
 

@@ -64,7 +64,7 @@ extension VideoQualityDesc on VideoQuality {
     '杜比视界',
     '8K 超高清'
   ];
-  get description => _descList[index];
+  String get description => _descList[index];
 }
 
 ///
@@ -97,7 +97,7 @@ extension AudioQualityDesc on AudioQuality {
     '杜比全景声',
     'Hi-Res无损',
   ];
-  get description => _descList[index];
+  String get description => _descList[index];
 }
 
 enum VideoDecodeFormats {

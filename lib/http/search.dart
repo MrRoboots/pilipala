@@ -123,7 +123,7 @@ class SearchHttp {
           'data': data,
         };
       } catch (err) {
-        print(err);
+
       }
     } else {
       return {

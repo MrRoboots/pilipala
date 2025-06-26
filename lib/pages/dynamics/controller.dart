@@ -179,13 +179,13 @@ class DynamicsController extends GetxController {
 
         break;
       case 'DYNAMIC_TYPE_PGC':
-        print('番剧');
+
         SmartDialog.showToast('暂未支持的类型，请联系开发者');
         break;
 
       /// 纯文字动态查看
       case 'DYNAMIC_TYPE_WORD':
-        print('纯文本');
+
         Get.toNamed('/dynamicDetail',
             arguments: {'item': item, 'floor': floor});
         break;

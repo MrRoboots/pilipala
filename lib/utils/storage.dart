@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+
 import 'package:pilipala/models/user/info.dart';
 
 class GStrorage {
@@ -9,6 +10,7 @@ class GStrorage {
   static late final Box<dynamic> localCache;
   static late final Box<dynamic> setting;
   static late final Box<dynamic> video;
+
 
   static Future<void> init() async {
     final Directory dir = await getApplicationSupportDirectory();
@@ -40,11 +42,14 @@ class GStrorage {
     );
     // 视频设置
     video = await Hive.openBox('video');
+    
+
   }
 
   static void regAdapter() {
     Hive.registerAdapter(UserInfoDataAdapter());
     Hive.registerAdapter(LevelInfoAdapter());
+
   }
 
   static Future<void> close() async {
@@ -60,6 +65,7 @@ class GStrorage {
     setting.close();
     video.compact();
     video.close();
+
   }
 }
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:pilipala/common/constants.dart';
 import 'package:pilipala/common/widgets/network_img_layer.dart';
-import 'package:pilipala/utils/download.dart';
+import 'package:pilipala/utils/img_download.dart';
 
 Future imageSaveDialog(context, videoItem, closeFn) {
   final double imgWidth =
@@ -39,7 +39,7 @@ Future imageSaveDialog(context, videoItem, closeFn) {
                           const BorderRadius.all(Radius.circular(20))),
                   child: IconButton(
                     style: ButtonStyle(
-                      padding: MaterialStateProperty.all(EdgeInsets.zero),
+                      padding: WidgetStateProperty.all(EdgeInsets.zero),
                     ),
                     onPressed: () => closeFn!(),
                     icon: const Icon(

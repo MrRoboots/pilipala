@@ -49,7 +49,7 @@ Future<bool> clearLogs() async {
   try {
     await file.writeAsString('');
   } catch (e) {
-    print('Error clearing file: $e');
+    
     return false;
   }
   return true;

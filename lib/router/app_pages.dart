@@ -12,6 +12,8 @@ import 'package:pilipala/pages/message/reply/index.dart';
 import 'package:pilipala/pages/message/system/index.dart';
 import 'package:pilipala/pages/opus/index.dart';
 import 'package:pilipala/pages/read/index.dart';
+import 'package:pilipala/pages/download/index.dart';
+import 'package:pilipala/pages/download/settings.dart';
 import 'package:pilipala/pages/setting/pages/logs.dart';
 
 import '../pages/about/index.dart';
@@ -59,6 +61,7 @@ import '../pages/subscription/index.dart';
 import '../pages/subscription_detail/index.dart';
 import '../pages/video/detail/index.dart';
 import '../pages/video/detail/reply_reply/index.dart';
+
 import '../pages/webview/index.dart';
 import '../pages/whisper/index.dart';
 import '../pages/whisper_detail/index.dart';
@@ -97,6 +100,7 @@ class Routes {
     // 动态详情
     CustomGetPage(
         name: '/dynamicDetail', page: () => const DynamicDetailPage()),
+
     // 关注
     CustomGetPage(name: '/follow', page: () => const FollowPage()),
     // 粉丝
@@ -196,6 +200,11 @@ class Routes {
     // 用户专栏
     CustomGetPage(
         name: '/memberArticle', page: () => const MemberArticlePage()),
+    // 下载管理
+    CustomGetPage(name: '/download', page: () => const DownloadPage()),
+    // 下载设置
+    CustomGetPage(
+        name: '/download/settings', page: () => DownloadSettingsPage()),
   ];
 }
 

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:floating/floating.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,10 +9,13 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:ns_danmaku/ns_danmaku.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:pilipala/http/user.dart';
 import 'package:pilipala/models/video/play/quality.dart';
 import 'package:pilipala/models/video/play/url.dart';
 import 'package:pilipala/pages/dlna/index.dart';
+import 'package:pilipala/services/download_service.dart';
+
 import 'package:pilipala/pages/video/detail/index.dart';
 import 'package:pilipala/pages/video/detail/introduction/widgets/menu_row.dart';
 import 'package:pilipala/plugin/pl_player/index.dart';
@@ -205,6 +209,12 @@ class _HeaderControlState extends State<HeaderControl> {
                       dense: true,
                       leading: const Icon(Icons.subtitles_outlined, size: 20),
                       title: const Text('弹幕设置', style: titleStyle),
+                    ),
+                    ListTile(
+                      onTap: () => {Get.back(), showDownloadOptions()},
+                      dense: true,
+                      leading: const Icon(Icons.download_outlined, size: 20),
+                      title: const Text('下载视频', style: titleStyle),
                     ),
                   ],
                 ),
@@ -958,6 +968,15 @@ class _HeaderControlState extends State<HeaderControl> {
                       ),
                     ),
                   ),
+                  ListTile(
+                    onTap: () => {
+                      Get.back(),
+                      _showDownloadDialog(),
+                    },
+                    dense: true,
+                    title: const Text('下载视频', style: titleStyle),
+                    subtitle: const Text('保存视频到本地观看', style: subTitleStyle),
+                  ),
                   Text('描边粗细 $strokeWidth'),
                   Padding(
                     padding: const EdgeInsets.only(
@@ -1367,6 +1386,308 @@ class _HeaderControlState extends State<HeaderControl> {
         ],
       ),
     );
+  }
+
+  /// 显示下载对话框
+  void _showDownloadDialog() {
+    // 获取可用的视频质量列表
+    final List<VideoQuality> availableQualities =
+        widget.videoDetailCtr!.data.acceptQuality != null
+            ? widget.videoDetailCtr!.data.acceptQuality!
+                .map((code) => VideoQualityCode.fromCode(code))
+                .where((quality) => quality != null)
+                .cast<VideoQuality>()
+                .toList()
+            : [];
+
+    // 获取可用的音频质量列表（如果有）
+    List<AudioQuality>? availableAudioQualities;
+    if (widget.videoDetailCtr!.data.dash != null &&
+        widget.videoDetailCtr!.data.dash!.audio != null &&
+        widget.videoDetailCtr!.data.dash!.audio!.isNotEmpty) {
+      availableAudioQualities = widget.videoDetailCtr!.data.dash!.audio!
+          .map((audio) => AudioQualityCode.fromCode(audio.id!))
+          .where((quality) => quality != null)
+          .cast<AudioQuality>()
+          .toList();
+    }
+
+    // 默认选择当前播放的视频质量
+    VideoQuality selectedQuality = widget.videoDetailCtr!.currentVideoQa;
+
+    // 默认选择当前播放的音频质量（如果有）
+    AudioQuality? selectedAudioQuality = widget.videoDetailCtr!.currentAudioQa;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('下载视频'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('选择视频质量：'),
+                  const SizedBox(height: 8),
+                  // 视频质量选择
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: availableQualities.map((quality) {
+                      return ChoiceChip(
+                        label: Text(quality.description),
+                        selected: selectedQuality == quality,
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() {
+                              selectedQuality = quality;
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+
+                  // 如果有音频选项，显示音频质量选择
+                  if (availableAudioQualities != null &&
+                      availableAudioQualities.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text('选择音频质量：'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: availableAudioQualities.map((quality) {
+                        return ChoiceChip(
+                          label: Text(quality.description),
+                          selected: selectedAudioQuality == quality,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                selectedAudioQuality = quality;
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+                  const Text(
+                    '下载的视频将保存在应用专属目录下，可在下载管理中查看。',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // 调用下载服务开始下载
+                    _startDownload(
+                      selectedQuality,
+                      selectedAudioQuality,
+                    );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('下载'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 显示下载选项对话框
+  void showDownloadOptions() {
+    // 获取可用的视频质量列表
+    final List<VideoQuality> availableQualities =
+        widget.videoDetailCtr!.data.acceptQuality != null
+            ? widget.videoDetailCtr!.data.acceptQuality!
+                .map((code) => VideoQualityCode.fromCode(code))
+                .where((quality) => quality != null)
+                .cast<VideoQuality>()
+                .toList()
+            : [];
+
+    // 获取可用的音频质量列表（如果有）
+    List<AudioQuality>? availableAudioQualities;
+    if (widget.videoDetailCtr!.data.dash != null &&
+        widget.videoDetailCtr!.data.dash!.audio != null &&
+        widget.videoDetailCtr!.data.dash!.audio!.isNotEmpty) {
+      availableAudioQualities = widget.videoDetailCtr!.data.dash!.audio!
+          .map((audio) => AudioQualityCode.fromCode(audio.id!))
+          .where((quality) => quality != null)
+          .cast<AudioQuality>()
+          .toList();
+    }
+
+    // 默认选择当前播放的视频质量
+    VideoQuality selectedQuality = widget.videoDetailCtr!.currentVideoQa;
+
+    // 默认选择当前播放的音频质量（如果有）
+    AudioQuality? selectedAudioQuality = widget.videoDetailCtr!.currentAudioQa;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('下载视频'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('选择视频质量：'),
+                  const SizedBox(height: 8),
+                  // 视频质量选择
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: availableQualities.map((quality) {
+                      return ChoiceChip(
+                        label: Text(quality.description),
+                        selected: selectedQuality == quality,
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() {
+                              selectedQuality = quality;
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+
+                  // 如果有音频选项，显示音频质量选择
+                  if (availableAudioQualities != null &&
+                      availableAudioQualities.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text('选择音频质量：'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: availableAudioQualities.map((quality) {
+                        return ChoiceChip(
+                          label: Text(quality.description),
+                          selected: selectedAudioQuality == quality,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                selectedAudioQuality = quality;
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+                  const Text(
+                    '下载的视频将保存在应用专属目录下，可在下载管理中查看。',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // 调用下载服务开始下载
+                    _startDownload(
+                      selectedQuality,
+                      selectedAudioQuality,
+                    );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('下载'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 检查存储权限
+  Future<bool> _checkStoragePermission() async {
+    try {
+      if (Platform.isAndroid) {
+        bool isGranted = false;
+
+        // 根据Android SDK版本请求不同的权限
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        if (androidInfo.version.sdkInt <= 32) {
+          // Android 12及以下使用storage权限
+          isGranted = await Permission.storage.request().isGranted;
+        } else {
+          // Android 13及以上使用photos权限
+          isGranted = await Permission.photos.request().isGranted;
+        }
+
+        if (!isGranted) {
+          SmartDialog.showToast('需要存储权限才能下载视频');
+          return false;
+        }
+      }
+      return true;
+    } catch (e) {
+      SmartDialog.showToast('检查权限失败: $e');
+      return false;
+    }
+  }
+
+  /// 开始下载视频
+  void _startDownload(
+      VideoQuality videoQuality, AudioQuality? audioQuality) async {
+    try {
+      // 先检查存储权限
+      if (!await _checkStoragePermission()) {
+        return;
+      }
+
+      // 获取下载服务
+      final downloadService = DownloadService.to;
+
+      // 获取视频信息
+      final String bvid = widget.videoDetailCtr!.bvid;
+      final int cid = widget.videoDetailCtr!.cid.value;
+      final String title = widget.videoDetailCtr!.videoItem['title'] ?? '未知标题';
+      final String cover = widget.videoDetailCtr!.cover.value;
+
+      // 创建下载任务
+      final task = await downloadService.createDownloadTask(
+        bvid: bvid,
+        cid: cid,
+        title: title,
+        cover: cover,
+        videoQuality: videoQuality,
+        audioQuality: audioQuality,
+      );
+
+      if (task != null) {
+        SmartDialog.showToast('已添加到下载队列');
+        // 打开下载管理页面
+        Get.toNamed('/download');
+      }
+    } catch (e) {
+      SmartDialog.showToast('创建下载任务失败: $e');
+    }
   }
 }
 
