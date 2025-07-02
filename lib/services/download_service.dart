@@ -427,9 +427,31 @@ class DownloadService extends GetxService {
           final String outputFilePath =
               '${downloadDirectory.value}/$outputFileName';
 
+          // 更新任务状态为合并中
+          final mergingTask = task
+            ..status = DownloadStatus.merging
+            ..progress = 1.0;
+          final taskIndex = downloadTasks.indexWhere((t) => t.id == taskId);
+          if (taskIndex != -1) {
+            downloadTasks[taskIndex] = mergingTask;
+          }
+          await _saveDownloadTask(mergingTask);
+          
+          // 显示合并开始通知
+          SmartDialog.showToast('${task.title} 正在合并音视频...');
+
+          // 使用FFmpeg合并
           final FlutterFFmpeg _flutterFFmpeg = FlutterFFmpeg();
+          final FlutterFFmpegConfig _flutterFFmpegConfig = FlutterFFmpegConfig();
+          
+          // 注册日志回调以监控进度
+          _flutterFFmpegConfig.enableLogCallback((log) {
+            print('FFmpeg Log: ${log.message}');
+          });
+
+          // 使用更高效的合并命令
           final int rc = await _flutterFFmpeg.execute(
-              "-i \"$videoFilePath\" -i \"$audioFilePath\" -c:v copy -c:a aac -strict experimental \"$outputFilePath\"");
+              "-i \"$videoFilePath\" -i \"$audioFilePath\" -c:v copy -c:a copy -strict experimental -y \"$outputFilePath\"");
           if (rc == 0) {
             print('FFmpeg process completed successfully.');
             // 删除原始视频和音频文件

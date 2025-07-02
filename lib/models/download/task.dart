@@ -6,7 +6,8 @@ enum DownloadStatus {
   paused, // 暂停
   completed, // 完成
   failed, // 失败
-  canceled // 取消
+  canceled, // 取消
+  merging // 合并中
 }
 
 enum DownloadType {

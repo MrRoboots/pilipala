@@ -92,6 +92,14 @@ class DownloadItem extends StatelessWidget {
                   color: Colors.green,
                 ),
               ),
+            if (task.status == DownloadStatus.merging)
+              Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Icon(
+                  Icons.merge_type,
+                  color: Colors.blue,
+                ),
+              ),
           ],
         ),
       ),
@@ -194,6 +202,11 @@ class DownloadItem extends StatelessWidget {
           controller.openDownloadedFile(task.id);
         },
       );
+    } else if (task.status == DownloadStatus.merging) {
+      return const IconButton(
+        icon: Icon(Icons.hourglass_top),
+        onPressed: null, // 合并中不允许操作
+      );
     } else {
       return IconButton(
         icon: const Icon(Icons.more_vert),
@@ -217,6 +230,10 @@ class DownloadItem extends StatelessWidget {
         return '下载失败';
       case DownloadStatus.canceled:
         return '已取消';
+      case DownloadStatus.merging:
+        return '合并中';
+      default:
+        return '';
     }
   }
 
@@ -224,6 +241,7 @@ class DownloadItem extends StatelessWidget {
   bool _shouldShowProgress() {
     return task.status == DownloadStatus.downloading ||
         task.status == DownloadStatus.paused ||
-        task.status == DownloadStatus.pending;
+        task.status == DownloadStatus.pending ||
+        task.status == DownloadStatus.merging;
   }
 }

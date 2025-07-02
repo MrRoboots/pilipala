@@ -362,6 +362,8 @@ class _DownloadPageState extends State<DownloadPage>
         return '下载失败';
       case DownloadStatus.canceled:
         return '已取消';
+      case DownloadStatus.merging:
+        return '合并中';
     }
   }
 }

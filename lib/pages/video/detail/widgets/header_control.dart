@@ -26,6 +26,7 @@ import '../../../../http/danmaku.dart';
 import '../../../../models/common/search_type.dart';
 import '../../../../models/video_detail_res.dart';
 import '../introduction/index.dart';
+import '../introduction/controller.dart';
 
 class HeaderControl extends StatefulWidget implements PreferredSizeWidget {
   const HeaderControl({
@@ -1667,7 +1668,19 @@ class _HeaderControlState extends State<HeaderControl> {
       // 获取视频信息
       final String bvid = widget.videoDetailCtr!.bvid;
       final int cid = widget.videoDetailCtr!.cid.value;
-      final String title = widget.videoDetailCtr!.videoItem['title'] ?? '未知标题';
+      String title;
+      // 确保获取到正确的标题
+      if (widget.videoDetailCtr!.videoItem.containsKey('title') && widget.videoDetailCtr!.videoItem['title'] != null) {
+        title = widget.videoDetailCtr!.videoItem['title'];
+      } else {
+        // 尝试从其他可能的来源获取标题
+        try {
+          final videoIntroController = Get.find<VideoIntroController>(tag: widget.videoDetailCtr!.heroTag);
+          title = videoIntroController.videoDetail.value.title ?? '未知视频';
+        } catch (e) {
+          title = '未知视频';
+        }
+      }
       final String cover = widget.videoDetailCtr!.cover.value;
 
       // 创建下载任务
