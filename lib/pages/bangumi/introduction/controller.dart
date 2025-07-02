@@ -7,9 +7,11 @@ import 'package:pilipala/http/search.dart';
 import 'package:pilipala/http/video.dart';
 import 'package:pilipala/models/bangumi/info.dart';
 import 'package:pilipala/models/user/fav_folder.dart';
+import 'package:pilipala/models/video/play/quality.dart';
 import 'package:pilipala/pages/video/detail/index.dart';
 import 'package:pilipala/pages/video/detail/reply/index.dart';
 import 'package:pilipala/plugin/pl_player/models/play_repeat.dart';
+import 'package:pilipala/services/download_service.dart';
 import 'package:pilipala/utils/feed_back.dart';
 import 'package:pilipala/utils/id_utils.dart';
 import 'package:pilipala/utils/storage.dart';
@@ -55,7 +57,7 @@ class BangumiIntroController extends GetxController {
   // 关注状态 默认未关注
   RxMap followStatus = {}.obs;
   int _tempThemeValue = -1;
-  var userInfo;
+  dynamic userInfo;
   PersistentBottomSheetController? bottomSheetController;
 
   @override
@@ -315,5 +317,86 @@ class BangumiIntroController extends GetxController {
 
   hiddenEpisodeBottomSheet() {
     bottomSheetController?.close();
+  }
+  
+  // 下载合集
+  Future<void> downloadSeason() async {
+    try {
+      if (bangumiDetail.value.episodes == null || bangumiDetail.value.episodes!.isEmpty) {
+        SmartDialog.showToast('没有可下载的视频');
+        return;
+      }
+      
+      // 显示选择视频质量的对话框
+      showDialog(
+        context: Get.context!,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('选择下载质量'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                   title: const Text('高清 720P'),
+                   onTap: () {
+                     Get.back();
+                     _startDownload(VideoQuality.high720);
+                   },
+                 ),
+                 ListTile(
+                   title: const Text('清晰 480P'),
+                   onTap: () {
+                     Get.back();
+                     _startDownload(VideoQuality.clear480);
+                   },
+                 ),
+                 ListTile(
+                   title: const Text('流畅 360P'),
+                   onTap: () {
+                     Get.back();
+                     _startDownload(VideoQuality.flunt360);
+                   },
+                 ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      SmartDialog.showToast('下载失败: $e');
+    }
+  }
+  
+  // 开始下载合集
+  Future<void> _startDownload(VideoQuality videoQuality) async {
+    try {
+      final DownloadService downloadService = DownloadService.to;
+      
+      // 准备合集信息
+      final int seasonId = bangumiDetail.value.seasonId!;
+      final String seasonTitle = bangumiDetail.value.title!;
+      
+      // 准备剧集信息
+      final List<Map<String, dynamic>> episodes = bangumiDetail.value.episodes!.map((episode) => {
+        'bvid': episode.bvid,
+        'cid': episode.cid,
+        'title': episode.longTitle!.isNotEmpty ? episode.longTitle : episode.title,
+        'cover': episode.cover,
+      }).toList();
+      
+      // 创建下载任务
+      final tasks = await downloadService.createSeasonDownloadTasks(
+        seasonId: seasonId,
+        seasonTitle: seasonTitle,
+        episodes: episodes,
+        videoQuality: videoQuality,
+      );
+      
+      if (tasks.isNotEmpty) {
+        SmartDialog.showToast('已添加${tasks.length}个视频到下载队列');
+      }
+    } catch (e) {
+      SmartDialog.showToast('下载失败: $e');
+    }
   }
 }

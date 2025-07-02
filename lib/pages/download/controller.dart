@@ -29,6 +29,9 @@ class DownloadController extends GetxController {
 
   // 已取消的任务
   List<DownloadTask> get canceledTasks => _downloadService.getCanceledTasks();
+  
+  // 按合集分组的任务
+  Map<String?, List<DownloadTask>> get seasonGroupedTasks => _downloadService.getSeasonGroupedTasks();
 
   // 下载目录
   RxString get downloadDirectory => _downloadService.downloadDirectory;

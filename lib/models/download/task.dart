@@ -13,7 +13,8 @@ enum DownloadStatus {
 enum DownloadType {
   video, // 视频
   audio, // 音频
-  combined // 合并后的视频
+  combined, // 合并后的视频
+  season // 合集
 }
 
 class DownloadTask {
@@ -36,6 +37,9 @@ class DownloadTask {
     this.downloadedBytes = 0,
     this.speed = 0,
     this.errorMessage,
+    this.seasonId,
+    this.isPartOfSeason = false,
+    this.seasonTitle,
   });
 
   String id; // 下载任务ID
@@ -56,6 +60,9 @@ class DownloadTask {
   int downloadedBytes; // 已下载字节数
   int speed; // 下载速度（字节/秒）
   String? errorMessage; // 错误信息
+  int? seasonId; // 合集ID
+  bool isPartOfSeason; // 是否是合集的一部分
+  String? seasonTitle; // 合集标题
 
   // 从JSON创建下载任务
   factory DownloadTask.fromJson(Map<String, dynamic> json) {
@@ -83,6 +90,9 @@ class DownloadTask {
       downloadedBytes: json['downloadedBytes'],
       speed: json['speed'],
       errorMessage: json['errorMessage'],
+      seasonId: json['seasonId'],
+      isPartOfSeason: json['isPartOfSeason'] ?? false,
+      seasonTitle: json['seasonTitle'],
     );
   }
 
@@ -98,6 +108,9 @@ class DownloadTask {
       'audioUrl': audioUrl,
       'videoQuality': videoQuality.code,
       'audioQuality': audioQuality?.code,
+      'seasonId': seasonId,
+      'isPartOfSeason': isPartOfSeason,
+      'seasonTitle': seasonTitle,
       'createTime': createTime.toIso8601String(),
       'completeTime': completeTime?.toIso8601String(),
       'progress': progress,

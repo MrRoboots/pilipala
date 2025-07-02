@@ -27,6 +27,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:pilipala/utils/recommend_filter.dart';
 import 'package:catcher_2/catcher_2.dart';
 import './services/loggeer.dart';
+import 'package:pilipala/pages/download/controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,6 +70,9 @@ void main() async {
 
   // 初始化DownloadService
   await Get.putAsync(() => DownloadService().init(), permanent: true);
+  
+  // 初始化DownloadController
+  Get.put(DownloadController(), permanent: true);
 }
 
 class MyApp extends StatelessWidget {

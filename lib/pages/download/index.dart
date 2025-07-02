@@ -15,8 +15,8 @@ class DownloadPage extends StatefulWidget {
 
 class _DownloadPageState extends State<DownloadPage>
     with SingleTickerProviderStateMixin {
-  final DownloadController controller = Get.put(DownloadController());
   late TabController _tabController;
+  final DownloadController downloadController = Get.find<DownloadController>();
 
   @override
   void initState() {
@@ -28,6 +28,135 @@ class _DownloadPageState extends State<DownloadPage>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+  
+  // 显示合集分组对话框
+  void _showSeasonGroupDialog(BuildContext context) {
+    // 获取按合集分组的下载任务
+    final Map<String?, List<DownloadTask>> seasonGroups = downloadController.seasonGroupedTasks;
+    
+    // 如果没有合集，显示提示
+    if (seasonGroups.isEmpty) {
+      Get.snackbar('提示', '没有找到合集下载任务');
+      return;
+    }
+    
+    // 显示对话框
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('合集下载'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: seasonGroups.length,
+            itemBuilder: (context, index) {
+              final seasonTitle = seasonGroups.keys.elementAt(index);
+              final tasks = seasonGroups[seasonTitle]!;
+              final completedCount = tasks.where((t) => t.status == DownloadStatus.completed).length;
+              
+              return ListTile(
+                title: Text(seasonTitle ?? '未知合集'),
+                subtitle: Text('$completedCount/${tasks.length} 已完成'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showSeasonDetailDialog(context, seasonTitle, tasks);
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 显示合集详情对话框
+  void _showSeasonDetailDialog(BuildContext context, String? seasonTitle, List<DownloadTask> tasks) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(seasonTitle ?? '未知合集'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: ListView.builder(
+            itemCount: tasks.length,
+            itemBuilder: (context, index) {
+              final task = tasks[index];
+              return DownloadItem(
+                task: task,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDownloadItemMenu(context, task);
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('返回'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 显示下载项菜单
+  void _showDownloadItemMenu(BuildContext context, DownloadTask task) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text('删除下载任务'),
+              onTap: () {
+                Navigator.pop(context);
+                downloadController.deleteDownload(task.id);
+              },
+            ),
+            if (task.status == DownloadStatus.completed)
+              ListTile(
+                leading: const Icon(Icons.folder_open),
+                title: const Text('打开文件'),
+                onTap: () {
+                  Navigator.pop(context);
+                  downloadController.openDownloadedFile(task.id);
+                },
+              ),
+            if (task.status == DownloadStatus.paused || task.status == DownloadStatus.failed)
+              ListTile(
+                leading: const Icon(Icons.play_arrow),
+                title: const Text('继续下载'),
+                onTap: () {
+                  Navigator.pop(context);
+                  downloadController.resumeDownload(task.id);
+                },
+              ),
+            if (task.status == DownloadStatus.downloading)
+              ListTile(
+                leading: const Icon(Icons.pause),
+                title: const Text('暂停下载'),
+                onTap: () {
+                  Navigator.pop(context);
+                  downloadController.pauseDownload(task.id);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -45,6 +174,13 @@ class _DownloadPageState extends State<DownloadPage>
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.folder),
+            tooltip: '按合集查看',
+            onPressed: () {
+              _showSeasonGroupDialog(context);
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -67,9 +203,9 @@ class _DownloadPageState extends State<DownloadPage>
   // 构建下载中列表（包括等待中、下载中、暂停的任务）
   Widget _buildDownloadingList() {
     return Obx(() {
-      final downloadingTasks = controller.downloadingTasks;
-      final pendingTasks = controller.pendingTasks;
-      final pausedTasks = controller.pausedTasks;
+      final downloadingTasks = downloadController.downloadingTasks;
+      final pendingTasks = downloadController.pendingTasks;
+      final pausedTasks = downloadController.pausedTasks;
 
       final allTasks = [...downloadingTasks, ...pendingTasks, ...pausedTasks];
 
@@ -92,8 +228,8 @@ class _DownloadPageState extends State<DownloadPage>
   // 构建已完成列表（包括已完成和已取消的任务）
   Widget _buildCompletedList() {
     return Obx(() {
-      final completedTasks = controller.completedTasks;
-      final canceledTasks = controller.canceledTasks;
+      final completedTasks = downloadController.completedTasks;
+      final canceledTasks = downloadController.canceledTasks;
 
       final allTasks = [...completedTasks, ...canceledTasks];
 
@@ -116,7 +252,7 @@ class _DownloadPageState extends State<DownloadPage>
   // 构建全部列表
   Widget _buildAllList() {
     return Obx(() {
-      final allTasks = controller.allTasks;
+      final allTasks = downloadController.allTasks;
 
       if (allTasks.isEmpty) {
         return _buildEmptyView('没有下载任务');
@@ -241,7 +377,7 @@ class _DownloadPageState extends State<DownloadPage>
             icon: Icons.pause,
             label: '暂停',
             onPressed: () {
-              controller.pauseDownload(task.id);
+              downloadController.pauseDownload(task.id);
               Navigator.pop(context);
             },
           ),
@@ -251,7 +387,7 @@ class _DownloadPageState extends State<DownloadPage>
             icon: Icons.play_arrow,
             label: '继续',
             onPressed: () {
-              controller.resumeDownload(task.id);
+              downloadController.resumeDownload(task.id);
               Navigator.pop(context);
             },
           ),
@@ -260,7 +396,7 @@ class _DownloadPageState extends State<DownloadPage>
             icon: Icons.cancel,
             label: '取消',
             onPressed: () {
-              controller.cancelDownload(task.id);
+              downloadController.cancelDownload(task.id);
               Navigator.pop(context);
             },
           ),
@@ -269,7 +405,7 @@ class _DownloadPageState extends State<DownloadPage>
             icon: Icons.folder_open,
             label: '打开',
             onPressed: () {
-              controller.openDownloadedFile(task.id);
+              downloadController.openDownloadedFile(task.id);
               Navigator.pop(context);
             },
           ),
@@ -335,7 +471,7 @@ class _DownloadPageState extends State<DownloadPage>
             ),
             TextButton(
               onPressed: () {
-                controller.deleteDownload(task.id, deleteFile: true);
+                downloadController.deleteDownload(task.id, deleteFile: true);
                 Navigator.pop(context);
                 Navigator.pop(context);
               },

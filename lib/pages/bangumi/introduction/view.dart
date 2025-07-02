@@ -386,6 +386,12 @@ class _BangumiInfoState extends State<BangumiInfo> {
                   selectStatus: false,
                   text: widget.bangumiDetail!.stat!['share']!.toString(),
                 ),
+                ActionItem(
+                  icon: const Icon(FontAwesomeIcons.download),
+                  onTap: () => bangumiIntroController.downloadSeason(),
+                  selectStatus: false,
+                  text: '下载',
+                ),
               ],
             ),
           ),

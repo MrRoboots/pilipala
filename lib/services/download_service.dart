@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:pilipala/http/init.dart';
 import 'package:pilipala/http/video.dart';
 import 'package:pilipala/models/download/task.dart';
@@ -178,6 +179,9 @@ class DownloadService extends GetxService {
     required String cover,
     required VideoQuality videoQuality,
     AudioQuality? audioQuality,
+    int? seasonId,
+    String? seasonTitle,
+    bool isPartOfSeason = false,
   }) async {
     try {
       // 检查权限
@@ -246,6 +250,9 @@ class DownloadService extends GetxService {
           audioQuality: audioQuality, // 添加音频质量
           createTime: DateTime.now(),
           status: DownloadStatus.pending,
+          seasonId: seasonId,
+          seasonTitle: seasonTitle,
+          isPartOfSeason: isPartOfSeason,
         );
       } else if (playUrlModel.durl != null && playUrlModel.durl!.isNotEmpty) {
         // Durl格式，直接下载完整视频
@@ -261,6 +268,9 @@ class DownloadService extends GetxService {
           videoQuality: videoQuality,
           createTime: DateTime.now(),
           status: DownloadStatus.pending,
+          seasonId: seasonId,
+          seasonTitle: seasonTitle,
+          isPartOfSeason: isPartOfSeason,
         );
       } else {
         SmartDialog.showToast('不支持的视频格式');
@@ -843,6 +853,122 @@ class DownloadService extends GetxService {
       return null;
     }
   }
+  
+  // 创建合集下载任务
+  Future<List<DownloadTask>> createSeasonDownloadTasks({
+    required int seasonId,
+    required String seasonTitle,
+    required List<Map<String, dynamic>> episodes,
+    required VideoQuality videoQuality,
+  }) async {
+    try {
+      // 检查存储权限
+      final hasPermission = await _checkStoragePermission();
+      if (!hasPermission) {
+        return [];
+      }
+
+      // 检查是否仅在WiFi下下载
+      if (onlyDownloadOnWifi.value) {
+        final connectivityResult = await Connectivity().checkConnectivity();
+        if (connectivityResult != ConnectivityResult.wifi) {
+          SmartDialog.showToast('当前设置仅允许在WiFi下下载');
+          return [];
+        }
+      }
+
+      List<DownloadTask> createdTasks = [];
+      int successCount = 0;
+      int failCount = 0;
+
+      // 遍历合集中的所有视频
+      for (var episode in episodes) {
+        try {
+          final String bvid = episode['bvid'];
+          final int cid = episode['cid'];
+          final String title = episode['title'] ?? '未知标题';
+          final String cover = episode['cover'] ?? '';
+          
+          // 获取视频播放地址
+          final videoUrlResult = await VideoHttp.videoUrl(bvid: bvid, cid: cid, qn: videoQuality.code);
+          
+          if (!videoUrlResult['status']) {
+            failCount++;
+            continue;
+          }
+          
+          final PlayUrlModel playUrlModel = videoUrlResult['data'];
+          
+          // 创建下载任务
+          DownloadTask? task;
+          
+          // 根据视频格式创建下载任务
+          if (playUrlModel.dash != null) {
+            // Dash格式
+            final videoItem = playUrlModel.dash!.video!
+                .firstWhere((v) => v.id == videoQuality.code,
+                    orElse: () => playUrlModel.dash!.video!.first);
+            
+            String videoUrl = videoItem.baseUrl!;
+            
+            // 获取音频
+            AudioQuality? audioQuality;
+            if (playUrlModel.dash!.audio != null && playUrlModel.dash!.audio!.isNotEmpty) {
+              final audioItem = playUrlModel.dash!.audio!.first;
+              audioQuality = AudioQualityCode.fromCode(audioItem.id!);
+            }
+            
+            task = await createDownloadTask(
+              bvid: bvid,
+              cid: cid,
+              title: title,
+              cover: cover,
+              videoQuality: videoQuality,
+              audioQuality: audioQuality,
+              seasonId: seasonId,
+              seasonTitle: seasonTitle,
+              isPartOfSeason: true,
+            );
+          } else if (playUrlModel.durl != null && playUrlModel.durl!.isNotEmpty) {
+            // Durl格式
+            task = await createDownloadTask(
+              bvid: bvid,
+              cid: cid,
+              title: title,
+              cover: cover,
+              videoQuality: videoQuality,
+              seasonId: seasonId,
+              seasonTitle: seasonTitle,
+              isPartOfSeason: true,
+            );
+          }
+          
+          if (task != null) {
+            createdTasks.add(task);
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (e) {
+          print('创建合集视频下载任务失败: $e');
+          failCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        SmartDialog.showToast('成功添加 $successCount 个视频到下载队列' + 
+          (failCount > 0 ? '，$failCount 个视频添加失败' : ''));
+      } else {
+        SmartDialog.showToast('添加合集下载任务失败');
+      }
+      
+      return createdTasks;
+    } catch (e) {
+      print('创建合集下载任务失败: $e');
+      SmartDialog.showToast('创建合集下载任务失败: $e');
+      return [];
+    }
+  }
 
   // 获取所有下载任务
   List<DownloadTask> getAllDownloadTasks() {
@@ -889,6 +1015,22 @@ class DownloadService extends GetxService {
     return downloadTasks
         .where((task) => task.status == DownloadStatus.canceled)
         .toList();
+  }
+  
+  // 获取按合集分组的任务
+  Map<String?, List<DownloadTask>> getSeasonGroupedTasks() {
+    final Map<String?, List<DownloadTask>> seasonGroups = {};
+    
+    for (var task in downloadTasks) {
+      if (task.isPartOfSeason && task.seasonTitle != null) {
+        if (!seasonGroups.containsKey(task.seasonTitle)) {
+          seasonGroups[task.seasonTitle] = [];
+        }
+        seasonGroups[task.seasonTitle]!.add(task);
+      }
+    }
+    
+    return seasonGroups;
   }
 
   // 清理服务资源

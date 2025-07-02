@@ -123,6 +123,11 @@ class DownloadItem extends StatelessWidget {
   Widget _buildInfo() {
     String info = '';
 
+    // 合集信息
+    if (task.isPartOfSeason && task.seasonTitle != null) {
+      info += '合集: ${task.seasonTitle} · ';
+    }
+
     // 视频质量
     info += task.videoQuality.description;
 
