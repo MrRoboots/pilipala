@@ -72,7 +72,12 @@ class Request {
         .map((Cookie cookie) => '${cookie.name}=${cookie.value}')
         .join('; ');
 
-    dio.options.headers['cookie'] = cookieString;
+    // dio.options.headers['cookie'] = cookieString;
+    dio.options.headers['cookie'] = '''
+buvid3=BEADE875-57D1-531B-3125-8B4D265A699205287infoc; b_nut=1735796105; _uuid=E9F63D64-D6E7-D1F9-6710F-E73B10BE6C10E505755infoc; buvid4=81AFAF8D-497A-F740-6935-906951E6629306223-025010205-YNA0SA7FbKrIm6CTaUz%2Byw%3D%3D; buvid_fp=65a5ab4ac948ab3d5434717bc294e4b6; rpdid=|(J|)R~Ru|l|0J'u~Jl~mYu|~; header_theme_version=CLOSE; enable_web_push=DISABLE; enable_feed_channel=DISABLE; home_feed_column=5; browser_resolution=1920-824; CURRENT_FNVAL=4048; DedeUserID=301445971; DedeUserID__ckMd5=0609a411e34457a6; CURRENT_QUALITY=116; b_lsid=1D7F1010510_197C9FF189F; bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTE3MDAxMTIsImlhdCI6MTc1MTQ0MDg1MiwicGx0IjotMX0.0vr0SP8GrJc-vad7ZqRI3tOuH0XbS9Gfvzx23Usw-bw; bili_ticket_expires=1751700052; SESSDATA=863a8538%2C1766992912%2C01fde%2A72CjCIifWQbseU1Zx8zYO_Kvh1t9Nu9TlhXBxhSIp-IKmQ47NMTnLAutBFEifmeCDWsYESVk04OWQxN1ZvVlFPSnhiMWk1c3lzQVBkV3VzZmpvRmFrZWdIVV81X3FhTG5YRXg3eWl1V29Eel9IQUdQNUI3MHVWV18yaDI4MElUalFDbEg2VDBxRnB3IIEC; bili_jct=c4b1a79d15964b278084536e6b8dfef0; sid=hqek7gga''';
+
+    // String csrf = await getCsrf();
+    // print('csrf: $csrf');
   }
 
   // 从cookie中获取 csrf token
@@ -228,7 +233,6 @@ class Request {
       }
     }
     options.responseType = resType;
-
     try {
       response = await dio.get(
         url,
