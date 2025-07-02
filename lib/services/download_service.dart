@@ -339,9 +339,8 @@ class DownloadService extends GetxService {
       _updateDownloadingCount();
 
       // 创建下载目录
-      final String videoFileName =
-          '${task.title}_${task.bvid}_${task.cid}_${task.videoQuality.code}.mp4';
-      final String videoFilePath = '${downloadDirectory.value}/$videoFileName';
+      final String videoFilePath =
+          '${downloadDirectory.value}/${task.id}_video.m4s';
 
       // 创建取消令牌
       final CancelToken cancelToken = CancelToken();
@@ -366,45 +365,101 @@ class DownloadService extends GetxService {
       });
 
       try {
-        // 开始下载视频
-        await Dio().download(
-          task.videoUrl,
-          videoFilePath,
-          cancelToken: cancelToken,
-          options: Options(
-            headers: {
-              'user-agent':
-                  'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15',
-              'referer': 'https://www.bilibili.com'
-            },
-            responseType: ResponseType.stream,
-          ),
-          onReceiveProgress: (received, total) {
-            if (total != -1) {
-              // 更新下载进度
-              final progress = received / total;
-              final updatedTask = task
-                ..progress = progress
-                ..totalBytes = total
-                ..downloadedBytes = received;
+        // 检查是否存在部分下载的文件，实现断点续传
+        int startBytes = 0;
+        final videoFile = File(videoFilePath);
+        if (await videoFile.exists()) {
+          startBytes = await videoFile.length();
+          print('发现已下载的文件，从 $startBytes 字节处继续下载');
 
-              final taskIndex = downloadTasks.indexWhere((t) => t.id == taskId);
-              if (taskIndex != -1) {
-                downloadTasks[taskIndex] = updatedTask;
-              }
+          // 如果文件已经下载完成，跳过下载
+          if (task.totalBytes > 0 && startBytes >= task.totalBytes) {
+            print('文件已完全下载，跳过下载过程');
+            // 更新任务状态
+            final updatedTask = task
+              ..progress = 1.0
+              ..downloadedBytes = startBytes
+              ..totalBytes = startBytes;
 
-              // 保存下载任务
-              _saveDownloadTask(updatedTask);
+            final taskIndex = downloadTasks.indexWhere((t) => t.id == taskId);
+            if (taskIndex != -1) {
+              downloadTasks[taskIndex] = updatedTask;
             }
-          },
-        );
+
+            // 保存下载任务
+            await _saveDownloadTask(updatedTask);
+          } else {
+            // 更新任务已下载字节数
+            task.downloadedBytes = startBytes;
+            if (task.totalBytes > 0) {
+              task.progress = startBytes / task.totalBytes;
+            }
+
+            final taskIndex = downloadTasks.indexWhere((t) => t.id == taskId);
+            if (taskIndex != -1) {
+              downloadTasks[taskIndex] = task;
+            }
+
+            // 保存下载任务
+            await _saveDownloadTask(task);
+          }
+        }
+
+        // 如果文件未完全下载，继续下载
+        if (task.totalBytes == 0 || startBytes < task.totalBytes) {
+          // 开始下载视频
+          await Dio().download(
+            task.videoUrl,
+            videoFilePath,
+            cancelToken: cancelToken,
+            options: Options(
+              headers: {
+                'user-agent':
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15',
+                'referer': 'https://www.bilibili.com',
+                // 添加Range头，指定从哪个字节开始下载
+                'range': 'bytes=$startBytes-'
+              },
+              responseType: ResponseType.stream,
+            ),
+            onReceiveProgress: (received, total) {
+              // 计算实际下载进度，考虑已下载的部分
+              final totalReceived = startBytes + received;
+              final totalSize = total == -1 ? 0 : (startBytes + total);
+
+              if (totalSize > 0) {
+                // 更新下载进度
+                final progress = totalReceived / totalSize;
+                final updatedTask = task
+                  ..progress = progress
+                  ..totalBytes = totalSize
+                  ..downloadedBytes = totalReceived;
+
+                final taskIndex =
+                    downloadTasks.indexWhere((t) => t.id == taskId);
+                if (taskIndex != -1) {
+                  downloadTasks[taskIndex] = updatedTask;
+                }
+
+                // 保存下载任务
+                _saveDownloadTask(updatedTask);
+              }
+            },
+          );
+        }
 
         // 如果有音频URL，下载音频并合并
-        if (task.audioUrl != null) {
-          final String audioFileName =
-              '${task.title}_${task.bvid}_${task.cid}_${task.audioQuality!.code}.m4a';
-          final String audioFilePath =
-              '${downloadDirectory.value}/$audioFileName';
+        if (task.audioUrl != null && task.audioUrl!.isNotEmpty) {
+          final audioFilePath =
+              '${downloadDirectory.value}/${task.id}_audio.m4s';
+
+          // 检查是否存在部分下载的音频文件，实现断点续传
+          int audioStartBytes = 0;
+          final audioFile = File(audioFilePath);
+          if (await audioFile.exists()) {
+            audioStartBytes = await audioFile.length();
+            print('发现已下载的音频文件，从 $audioStartBytes 字节处继续下载');
+          }
 
           // 下载音频
           await Dio().download(
@@ -415,7 +470,9 @@ class DownloadService extends GetxService {
               headers: {
                 'user-agent':
                     'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15',
-                'referer': 'https://www.bilibili.com'
+                'referer': 'https://www.bilibili.com',
+                // 添加Range头，指定从哪个字节开始下载
+                'range': 'bytes=$audioStartBytes-'
               },
               responseType: ResponseType.stream,
             ),
@@ -423,9 +480,12 @@ class DownloadService extends GetxService {
 
           // 合并视频和音频
           final String outputFileName =
-              '${task.title}_${task.bvid}_${task.cid}_${task.videoQuality.code}_merged.mp4';
+              '${task.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')}_${task.bvid}_${task.cid}_${task.videoQuality.code}.mp4';
           final String outputFilePath =
               '${downloadDirectory.value}/$outputFileName';
+
+          // 设置任务的文件路径
+          task.filePath = outputFilePath;
 
           // 更新任务状态为合并中
           final mergingTask = task
@@ -436,14 +496,15 @@ class DownloadService extends GetxService {
             downloadTasks[taskIndex] = mergingTask;
           }
           await _saveDownloadTask(mergingTask);
-          
+
           // 显示合并开始通知
           SmartDialog.showToast('${task.title} 正在合并音视频...');
 
           // 使用FFmpeg合并
           final FlutterFFmpeg _flutterFFmpeg = FlutterFFmpeg();
-          final FlutterFFmpegConfig _flutterFFmpegConfig = FlutterFFmpegConfig();
-          
+          final FlutterFFmpegConfig _flutterFFmpegConfig =
+              FlutterFFmpegConfig();
+
           // 注册日志回调以监控进度
           _flutterFFmpegConfig.enableLogCallback((log) {
             print('FFmpeg Log: ${log.message}');
@@ -457,13 +518,12 @@ class DownloadService extends GetxService {
             // 删除原始视频和音频文件
             await File(videoFilePath).delete();
             await File(audioFilePath).delete();
-            // 更新任务文件路径为合并后的文件
-            task.filePath = outputFilePath;
           } else {
             print('FFmpeg process failed with exit code $rc');
             throw Exception('视频音频合并失败');
           }
         } else {
+          // 如果没有音频，直接使用视频文件路径
           task.filePath = videoFilePath;
         }
 
@@ -471,8 +531,7 @@ class DownloadService extends GetxService {
         final completedTask = task
           ..status = DownloadStatus.completed
           ..progress = 1.0
-          ..completeTime = DateTime.now()
-          ..filePath = task.filePath;
+          ..completeTime = DateTime.now();
 
         final taskIndex = downloadTasks.indexWhere((t) => t.id == taskId);
         if (taskIndex != -1) {
@@ -597,7 +656,7 @@ class DownloadService extends GetxService {
     }
   }
 
-  // 恢复下载任务
+  // 恢复下载任务（支持断点续传）
   Future<void> resumeDownload(String taskId) async {
     try {
       // 查找任务
@@ -608,7 +667,7 @@ class DownloadService extends GetxService {
 
       final task = downloadTasks[taskIndex];
 
-      // 检查是否已暂停
+      // 检查是否已暂停或失败
       if (task.status != DownloadStatus.paused &&
           task.status != DownloadStatus.failed) {
         return;
@@ -621,8 +680,11 @@ class DownloadService extends GetxService {
       // 保存下载任务
       await _saveDownloadTask(task);
 
-      // 开始下载
+      // 开始下载（断点续传逻辑在startDownload方法中实现）
       startDownload(taskId);
+
+      // 显示恢复下载通知
+      SmartDialog.showToast('正在恢复下载: ${task.title}');
     } catch (e) {
       print('恢复下载任务失败: $e');
       SmartDialog.showToast('恢复下载任务失败: $e');
