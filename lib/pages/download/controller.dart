@@ -84,7 +84,7 @@ class DownloadController extends GetxController {
         return;
       }
 
-      final result = await OpenFile.open(task.filePath!); 
+      final result = await OpenFile.open(task.filePath!);
       if (result.type != ResultType.done) {
         SmartDialog.showToast('无法打开文件: ${result.message}');
       }
