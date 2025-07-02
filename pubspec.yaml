@@ -155,6 +155,8 @@ dependencies:
   open_file: ^3.3.2
   # 音视频处理
   flutter_ffmpeg: ^0.4.2
+  # 本地通知
+  flutter_local_notifications: ^16.3.2
 
 dev_dependencies:
   flutter_test:

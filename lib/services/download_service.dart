@@ -14,6 +14,7 @@ import 'package:pilipala/http/video.dart';
 import 'package:pilipala/models/download/task.dart';
 import 'package:pilipala/models/video/play/quality.dart';
 import 'package:pilipala/models/video/play/url.dart';
+import 'package:pilipala/services/download_notification_service.dart';
 import 'package:pilipala/utils/storage.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
@@ -45,6 +46,10 @@ class DownloadService extends GetxService {
   // 下载任务取消令牌
   Map<String, CancelToken> _cancelTokens = {};
 
+  // 下载通知服务
+  final DownloadNotificationService _notificationService =
+      DownloadNotificationService();
+
   // 初始化服务
   Future<DownloadService> init() async {
     try {
@@ -63,6 +68,9 @@ class DownloadService extends GetxService {
 
       // 加载已有下载任务
       _loadDownloadTasks();
+
+      // 初始化通知服务
+      await _notificationService.init();
 
       return this;
     } catch (e) {
@@ -338,6 +346,9 @@ class DownloadService extends GetxService {
       // 更新下载中任务数量
       _updateDownloadingCount();
 
+      // 显示下载开始通知
+      await _showDownloadNotification(task);
+
       // 创建下载目录
       final String videoFilePath =
           '${downloadDirectory.value}/${task.id}_video.m4s';
@@ -346,7 +357,7 @@ class DownloadService extends GetxService {
       final CancelToken cancelToken = CancelToken();
       _cancelTokens[taskId] = cancelToken;
 
-      // 创建计时器，用于更新下载速度
+      // 创建计时器，用于更新下载速度和通知
       int lastDownloadedBytes = task.downloadedBytes;
       _downloadTimers[taskId] =
           Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -361,6 +372,11 @@ class DownloadService extends GetxService {
         final taskIndex = downloadTasks.indexWhere((t) => t.id == taskId);
         if (taskIndex != -1) {
           downloadTasks[taskIndex] = updatedTask;
+
+          // 更新通知
+          if (updatedTask.status == DownloadStatus.downloading) {
+            _showDownloadNotification(updatedTask);
+          }
         }
       });
 
@@ -500,6 +516,9 @@ class DownloadService extends GetxService {
           // 显示合并开始通知
           SmartDialog.showToast('${task.title} 正在合并音视频...');
 
+          // 更新通知
+          await _showDownloadNotification(mergingTask);
+
           // 使用FFmpeg合并
           final FlutterFFmpeg _flutterFFmpeg = FlutterFFmpeg();
           final FlutterFFmpegConfig _flutterFFmpegConfig =
@@ -552,6 +571,9 @@ class DownloadService extends GetxService {
 
         // 显示下载完成通知
         SmartDialog.showToast('${task.title} 下载完成');
+
+        // 更新通知
+        await _showDownloadNotification(completedTask);
       } catch (e) {
         // 检查是否是用户取消的下载
         if (cancelToken.isCancelled) {
@@ -582,6 +604,9 @@ class DownloadService extends GetxService {
 
         // 显示下载失败通知
         SmartDialog.showToast('${task.title} 下载失败: $e');
+
+        // 更新通知
+        await _showDownloadNotification(failedTask);
       }
     } catch (e) {
       print('开始下载任务失败: $e');
@@ -597,6 +622,14 @@ class DownloadService extends GetxService {
 
     // 移除取消令牌
     _cancelTokens.remove(taskId);
+
+    // 取消通知
+    _notificationService.cancelNotification(taskId);
+  }
+
+  // 显示下载通知
+  Future<void> _showDownloadNotification(DownloadTask task) async {
+    await _notificationService.showDownloadNotification(task);
   }
 
   // 开始等待中的下载任务
@@ -645,6 +678,9 @@ class DownloadService extends GetxService {
       // 保存下载任务
       await _saveDownloadTask(task);
 
+      // 显示暂停通知
+      await _showDownloadNotification(task);
+
       // 更新下载中任务数量
       _updateDownloadingCount();
 
@@ -685,6 +721,9 @@ class DownloadService extends GetxService {
 
       // 显示恢复下载通知
       SmartDialog.showToast('正在恢复下载: ${task.title}');
+
+      // 更新通知
+      await _showDownloadNotification(task);
     } catch (e) {
       print('恢复下载任务失败: $e');
       SmartDialog.showToast('恢复下载任务失败: $e');
@@ -714,6 +753,9 @@ class DownloadService extends GetxService {
 
       // 保存下载任务
       await _saveDownloadTask(task);
+
+      // 取消通知
+      await _notificationService.cancelNotification(taskId);
 
       // 更新下载中任务数量
       _updateDownloadingCount();
@@ -753,8 +795,11 @@ class DownloadService extends GetxService {
       // 从列表中移除任务
       downloadTasks.removeAt(taskIndex);
 
-      // 从存储中删除任务
+      // 删除任务
       await _deleteDownloadTask(taskId);
+
+      // 取消通知
+      await _notificationService.cancelNotification(taskId);
     } catch (e) {
       print('删除下载任务失败: $e');
       SmartDialog.showToast('删除下载任务失败: $e');
