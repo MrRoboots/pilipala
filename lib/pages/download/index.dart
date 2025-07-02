@@ -201,8 +201,8 @@ class _DownloadPageState extends State<DownloadPage>
         if (task.totalBytes > 0)
           _buildInfoItem(
               '大小', '${Utils.formatBytes(task.totalBytes, decimals: 2)}'),
-        if (task.savePath != null && task.status == DownloadStatus.completed)
-          _buildInfoItem('保存路径', task.savePath!),
+        if (task.filePath != null && task.status == DownloadStatus.completed)
+          _buildInfoItem('保存路径', task.filePath!),
         if (task.errorMessage != null && task.status == DownloadStatus.failed)
           _buildInfoItem('错误信息', task.errorMessage!),
       ],

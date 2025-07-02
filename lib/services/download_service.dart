@@ -16,6 +16,7 @@ import 'package:pilipala/models/video/play/quality.dart';
 import 'package:pilipala/models/video/play/url.dart';
 import 'package:pilipala/utils/storage.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
 
 class DownloadService extends GetxService {
   static DownloadService get to => Get.find<DownloadService>();
@@ -116,9 +117,14 @@ class DownloadService extends GetxService {
           downloadTasks.add(task);
 
           // 恢复未完成的下载任务状态为暂停
-          if (task.status == DownloadStatus.downloading) {
-            task.status = DownloadStatus.paused;
-          }
+      if (task.status == DownloadStatus.downloading) {
+        task.status = DownloadStatus.paused;
+      }
+      // 如果文件不存在，则将任务状态设置为失败
+      if (task.filePath != null && !File(task.filePath!).existsSync()) {
+        task.status = DownloadStatus.failed;
+        task.errorMessage = '文件不存在';
+      }
         } catch (e) {
           print('加载下载任务失败: $e');
         }
@@ -199,6 +205,14 @@ class DownloadService extends GetxService {
         }
 
         final VideoItem videoItem = videoList.first;
+
+        // 获取音频URL
+        AudioItem? audioItem;
+        if (playUrlModel.dash!.audio != null &&
+            playUrlModel.dash!.audio!.isNotEmpty) {
+          audioItem = playUrlModel.dash!.audio!.firstWhere(
+              (i) => i.id == audioQuality?.code,orElse: () => playUrlModel.dash!.audio!.first);
+        }
         String videoUrl = videoItem.baseUrl!;
 
         // 获取音频URL
@@ -218,9 +232,9 @@ class DownloadService extends GetxService {
           title: title,
           cover: cover,
           videoUrl: videoUrl,
-          audioUrl: audioUrl,
+          audioUrl: audioItem?.baseUrl, // 添加音频URL
           videoQuality: videoQuality,
-          audioQuality: audioQuality,
+          audioQuality: audioQuality, // 添加音频质量
           createTime: DateTime.now(),
           status: DownloadStatus.pending,
         );
@@ -386,8 +400,43 @@ class DownloadService extends GetxService {
 
         // 如果有音频URL，下载音频并合并
         if (task.audioUrl != null) {
-          // TODO: 实现音频下载和合并逻辑
-          // 这里需要使用FFmpeg进行视频和音频的合并
+          final String audioFileName = '${task.title}_${task.bvid}_${task.cid}_${task.audioQuality!.code}.m4a';
+          final String audioFilePath = '${downloadDirectory.value}/$audioFileName';
+
+          // 下载音频
+          await Dio().download(
+            task.audioUrl!,
+            audioFilePath,
+            cancelToken: cancelToken,
+            options: Options(
+              headers: {
+                'user-agent':
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15',
+                'referer': 'https://www.bilibili.com'
+              },
+              responseType: ResponseType.stream,
+            ),
+          );
+
+          // 合并视频和音频
+          final String outputFileName = '${task.title}_${task.bvid}_${task.cid}_${task.videoQuality.code}_merged.mp4';
+          final String outputFilePath = '${downloadDirectory.value}/$outputFileName';
+
+          final FlutterFFmpeg _flutterFFmpeg = FlutterFFmpeg();
+          final int rc = await _flutterFFmpeg.execute("-i \"$videoFilePath\" -i \"$audioFilePath\" -c:v copy -c:a aac -strict experimental \"$outputFilePath\"");
+          if (rc == 0) {
+            print('FFmpeg process completed successfully.');
+            // 删除原始视频和音频文件
+            await File(videoFilePath).delete();
+            await File(audioFilePath).delete();
+            // 更新任务文件路径为合并后的文件
+            task.filePath = outputFilePath;
+          } else {
+            print('FFmpeg process failed with exit code $rc');
+            throw Exception('视频音频合并失败');
+          }
+        } else {
+          task.filePath = videoFilePath;
         }
 
         // 下载完成，更新任务状态
@@ -395,7 +444,7 @@ class DownloadService extends GetxService {
           ..status = DownloadStatus.completed
           ..progress = 1.0
           ..completeTime = DateTime.now()
-          ..savePath = videoFilePath;
+          ..filePath = task.filePath;
 
         final taskIndex = downloadTasks.indexWhere((t) => t.id == taskId);
         if (taskIndex != -1) {
@@ -604,8 +653,8 @@ class DownloadService extends GetxService {
       }
 
       // 如果需要删除文件
-      if (deleteFile && task.savePath != null) {
-        final file = File(task.savePath!);
+      if (deleteFile && task.filePath != null) {
+          final file = File(task.filePath!);
         if (await file.exists()) {
           await file.delete();
         }

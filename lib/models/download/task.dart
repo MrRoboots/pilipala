@@ -30,7 +30,7 @@ class DownloadTask {
     this.completeTime,
     this.progress = 0.0,
     this.status = DownloadStatus.pending,
-    this.savePath,
+    this.filePath,
     this.totalBytes = 0,
     this.downloadedBytes = 0,
     this.speed = 0,
@@ -50,7 +50,7 @@ class DownloadTask {
   DateTime? completeTime; // 完成时间
   double progress; // 下载进度（0.0-1.0）
   DownloadStatus status; // 下载状态
-  String? savePath; // 保存路径
+  String? filePath; // 保存路径
   int totalBytes; // 总字节数
   int downloadedBytes; // 已下载字节数
   int speed; // 下载速度（字节/秒）
@@ -77,7 +77,7 @@ class DownloadTask {
           : null,
       progress: json['progress'],
       status: DownloadStatus.values[json['status']],
-      savePath: json['savePath'],
+      filePath: json['filePath'],
       totalBytes: json['totalBytes'],
       downloadedBytes: json['downloadedBytes'],
       speed: json['speed'],
@@ -101,7 +101,7 @@ class DownloadTask {
       'completeTime': completeTime?.toIso8601String(),
       'progress': progress,
       'status': status.index,
-      'savePath': savePath,
+      'filePath': filePath,
       'totalBytes': totalBytes,
       'downloadedBytes': downloadedBytes,
       'speed': speed,

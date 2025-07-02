@@ -73,18 +73,18 @@ class DownloadController extends GetxController {
   Future<void> openDownloadedFile(String taskId) async {
     try {
       final task = _downloadService.getDownloadTask(taskId);
-      if (task == null || task.savePath == null) {
+      if (task == null || task.filePath == null) {
         SmartDialog.showToast('找不到文件');
         return;
       }
 
-      final file = File(task.savePath!);
+      final file = File(task.filePath!);
       if (!await file.exists()) {
         SmartDialog.showToast('文件不存在');
         return;
       }
 
-      final result = await OpenFile.open(task.savePath!);
+      final result = await OpenFile.open(task.filePath!); 
       if (result.type != ResultType.done) {
         SmartDialog.showToast('无法打开文件: ${result.message}');
       }
