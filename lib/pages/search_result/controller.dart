@@ -21,9 +21,9 @@ class SearchResultController extends GetxController {
 
   Future querySearchCount() async {
     var result = await SearchHttp.searchCount(keyword: keyword!);
-    if (result['status']) {
+    if (result['status'] && result['data'].topTList != null) {
       for (var i in searchTabs) {
-        final count = result['data'].topTList[i['id']];
+        final count = result['data'].topTList[i['id']] ?? 0;
         i['count'] = count > 99 ? '99+' : count.toString();
       }
       searchTabs.refresh();
