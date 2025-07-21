@@ -56,7 +56,7 @@ class RoutePush {
 
   // 登录跳转
   static Future<void> loginRedirectPush() async {
-    await Get.offAndToNamed(
+    await Get.toNamed(
       '/webview',
       parameters: {
         'url': 'https://passport.bilibili.com/h5-app/passport/login',

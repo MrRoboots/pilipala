@@ -11,7 +11,6 @@ class MediaController extends GetxController {
   Box userInfoCache = GStrorage.userInfo;
   RxBool userLogin = false.obs;
   List list = [
-
     {
       'icon': Icons.history,
       'title': '观看记录',
@@ -45,6 +44,9 @@ class MediaController extends GetxController {
   }
 
   Future<dynamic> queryFavFolder() async {
+    userInfo = userInfoCache.get('userInfoCache');
+    userLogin.value = userInfo != null;
+
     if (!userLogin.value) {
       return {'status': false, 'data': [], 'msg': '未登录'};
     }

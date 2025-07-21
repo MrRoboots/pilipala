@@ -44,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
           IconButton(
             tooltip: '浏览器打开',
             onPressed: () {
-              Get.offNamed(
+              Get.toNamed(
                 '/webview',
                 parameters: {
                   'url': 'https://passport.bilibili.com/h5-app/passport/login',

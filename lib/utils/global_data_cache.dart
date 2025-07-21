@@ -11,7 +11,7 @@ Box videoStorage = GStrorage.video;
 Box userInfoCache = GStrorage.userInfo;
 
 class GlobalDataCache {
-  late int imgQuality;
+  late int imgQuality=10;
   late FullScreenGestureMode fullScreenGestureMode;
   late bool enablePlayerControlAnimation;
   late List<String> actionTypeSort;

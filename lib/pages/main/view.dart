@@ -23,9 +23,9 @@ class MainApp extends StatefulWidget {
 class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
   final MainController _mainController = Get.put(MainController());
   late HomeController _homeController;
-  RankController? _rankController;
-  DynamicsController? _dynamicController;
-  MediaController? _mediaController;
+  late RankController _rankController;
+  late DynamicsController _dynamicController;
+  late MediaController _mediaController;
 
   int? _lastSelectTime; //上次点击时间
   Box setting = GStrorage.setting;
@@ -98,15 +98,15 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
 
   void controllerInit() {
     _homeController = Get.put(HomeController());
-    if (_mainController.pagesIds.contains(1)) {
+    // if (_mainController.pagesIds.contains(1)) {
+    // }
       _rankController = Get.put(RankController());
-    }
-    if (_mainController.pagesIds.contains(2)) {
+    // if (_mainController.pagesIds.contains(2)) {
+    // }
       _dynamicController = Get.put(DynamicsController());
-    }
-    if (_mainController.pagesIds.contains(3)) {
+    // if (_mainController.pagesIds.contains(3)) {
+    // }
       _mediaController = Get.put(MediaController());
-    }
   }
 
   @override
